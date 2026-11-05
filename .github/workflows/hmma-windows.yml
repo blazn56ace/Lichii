@@ -34,16 +34,20 @@ jobs:
       - name: Locate glslangValidator
         shell: pwsh
         run: |
-          $candidate = Get-ChildItem -Path "$env:GITHUB_WORKSPACE/VULKAN_SDK", "C:/VulkanSDK" -Filter glslangValidator.exe -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+          $candidates = @(
+            "$env:GITHUB_WORKSPACE/VULKAN_SDK/bin/glslangValidator.exe",
+            "$env:GITHUB_WORKSPACE/VULKAN_SDK/Bin/glslangValidator.exe",
+            "$env:VULKAN_SDK/Bin/glslangValidator.exe",
+            "$env:VULKAN_SDK/bin/glslangValidator.exe"
+          )
+          $candidate = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
           if (-not $candidate) {
-            choco install glslang -y --no-progress
-            $candidate = Get-ChildItem -Path "C:/ProgramData/chocolatey", "C:/Program Files" -Filter glslangValidator.exe -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+            Write-Host "Vulkan SDK bin contents:"
+            Get-ChildItem "$env:GITHUB_WORKSPACE/VULKAN_SDK/bin" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+            throw "glslangValidator.exe missing from Vulkan SDK bin"
           }
-          if (-not $candidate) { throw "glslangValidator.exe not found" }
-          $bin = $candidate.DirectoryName
-          Write-Host "Using glslangValidator from $bin"
-          $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          "GLSLANG_VALIDATOR=$($candidate.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Found $candidate"
+          (Split-Path $candidate) | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Configure
         shell: pwsh
         run: >
