@@ -2,6 +2,9 @@ name: Windows x64 HMMA experiment
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/hmma-inline-windows
 
 permissions:
   contents: read
