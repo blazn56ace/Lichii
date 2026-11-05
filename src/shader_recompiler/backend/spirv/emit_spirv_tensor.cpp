@@ -31,7 +31,13 @@ void DefineSoftwareMatrixFunctions(EmitContext& ctx, const IR::Program& program)
         const auto add = [&](Id a, Id b) { return ctx.OpIAdd(u32ty, a, b); };
         const auto and_ = [&](Id a, u32 b) { return ctx.OpBitwiseAnd(u32ty, a, imm(b)); };
         const auto unpack = [&](Id v) { return ctx.OpUnpackHalf2x16(ctx.F32[2], v); };
+        // Experimental fast FP16 quantization. Disabled by default.
+        const char* fast_round_env = std::getenv("EDEN_NX2_HMMA_FAST_ROUND");
+        const bool fast_round = fast_round_env && std::string_view(fast_round_env) == "1";
         const auto round_half = [&](Id value) {
+            if (fast_round) {
+                return ctx.OpQuantizeToF16(f32ty, value);
+            }
             // Do not express the intermediate rounding as unpack(pack(value)): drivers may
             // eliminate that round trip. Round normal significands explicitly, ties to even;
             // half subnormals lie on the exactly representable 2^-24 grid.
@@ -89,7 +95,11 @@ void DefineSoftwareMatrixFunctions(EmitContext& ctx, const IR::Program& program)
         ctx.AddLabel(header);
         const Id pair = ctx.OpLoad(u32ty, counter);
         const Id more = ctx.OpULessThan(ctx.U1, pair, imm(variant ? 8 : 4));
-        ctx.OpLoopMerge(end, next, spv::LoopControlMask::DontUnroll);
+        // Optional loop-unroll hint for the software HMMA matrix loop.
+        const char* unroll_env = std::getenv("EDEN_NX2_HMMA_UNROLL");
+        const bool unroll_hmma = unroll_env && std::string_view(unroll_env) == "1";
+        ctx.OpLoopMerge(end, next, unroll_hmma ? spv::LoopControlMask::Unroll
+                                               : spv::LoopControlMask::DontUnroll);
         ctx.OpBranchConditional(more, body, end);
         ctx.AddLabel(body);
         const Id upper = ctx.OpUGreaterThanEqual(ctx.U1, pair, imm(4));
