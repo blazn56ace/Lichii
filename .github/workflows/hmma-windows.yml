@@ -1,0 +1,51 @@
+name: Windows x64 HMMA experiment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+      - name: Install Qt 6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          arch: win64_msvc2022_64
+          modules: 'qtcharts qtmultimedia'
+          cache: true
+      - name: Install Vulkan SDK
+        shell: pwsh
+        run: ./tools/windows/install-vulkan-sdk.ps1
+      - name: Configure
+        shell: pwsh
+        run: >
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          -DYUZU_TESTS=OFF -DYUZU_USE_CPM=ON
+          -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        shell: pwsh
+        run: cmake --build build --config Release --parallel 4 --target yuzu
+      - name: Collect application files
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem build -Filter lichii.exe -Recurse -File | Select-Object -First 1
+          if (-not $exe) { throw "lichii.exe not found after build" }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item (Join-Path $exe.DirectoryName '*') dist -Recurse -Force
+          Get-ChildItem dist | Select-Object Name, Length
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lichii-HMMA-Inline-Windows-x64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
