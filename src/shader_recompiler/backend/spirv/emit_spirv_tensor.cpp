@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "shader_recompiler/backend/spirv/emit_spirv_instructions.h"
+#include <cstdlib>
+#include <string_view>
 #include "shader_recompiler/backend/spirv/spirv_emit_context.h"
 #include "common/common_types.h"
 #include "shader_recompiler/frontend/ir/program.h"
@@ -49,7 +51,11 @@ void DefineSoftwareMatrixFunctions(EmitContext& ctx, const IR::Program& program)
             return ctx.OpBitcast(f32ty, ctx.OpBitwiseOr(u32ty, result, and_(bits, 0x80000000)));
         };
         const Id type = ctx.TypeFunction(ctx.U32[2], ctx.U32[4], ctx.U32[2], ctx.U32[2]);
-        const Id fn = ctx.OpFunction(ctx.U32[2], spv::FunctionControlMask::DontInline, type);
+        // Experimental driver inlining hint. Disabled by default.
+        const char* inline_env = std::getenv("EDEN_NX2_HMMA_INLINE");
+        const bool inline_hmma = inline_env && std::string_view(inline_env) == "1";
+        const Id fn = ctx.OpFunction(ctx.U32[2], inline_hmma ? spv::FunctionControlMask::Inline
+                                                             : spv::FunctionControlMask::DontInline, type);
         ctx.software_matrix_functions[variant] = fn;
         const Id matrix_a = ctx.OpFunctionParameter(ctx.U32[4]);
         const Id matrix_b = ctx.OpFunctionParameter(ctx.U32[2]);
