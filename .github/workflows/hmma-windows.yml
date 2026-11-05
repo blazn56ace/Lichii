@@ -1,0 +1,71 @@
+name: Windows x64 HMMA experiment
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experiment/hmma-inline-windows
+      - experiment/hmma-upstream-combined
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+      - name: Install Qt 6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          arch: win64_msvc2022_64
+          modules: 'qtcharts qtmultimedia'
+          cache: true
+      - name: Install Vulkan SDK
+        uses: humbletim/setup-vulkan-sdk@v1.2.1
+        with:
+          vulkan-query-version: 1.3.290.0
+          vulkan-components: Vulkan-Headers, Vulkan-Loader, Glslang, SPIRV-Tools
+          vulkan-use-cache: true
+      - name: Provide glslangValidator compatibility executable
+        shell: pwsh
+        run: |
+          $bin = Join-Path $env:GITHUB_WORKSPACE "VULKAN_SDK/bin"
+          $glslang = Join-Path $bin "glslang.exe"
+          $validator = Join-Path $bin "glslangValidator.exe"
+          if (-not (Test-Path $glslang)) { throw "glslang.exe missing from Vulkan SDK" }
+          if (-not (Test-Path $validator)) {
+            Copy-Item -LiteralPath $glslang -Destination $validator
+          }
+          & $validator --version
+          if ($LASTEXITCODE -ne 0) { throw "glslangValidator compatibility executable failed" }
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Configure
+        shell: pwsh
+        run: >
+          cmake -S . -B build -G "Visual Studio 18 2026" -A x64
+          -DYUZU_TESTS=OFF -DYUZU_USE_CPM=ON
+          -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        shell: pwsh
+        run: cmake --build build --config Release --parallel 4 --target yuzu
+      - name: Collect application files
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem build -Filter lichii.exe -Recurse -File | Select-Object -First 1
+          if (-not $exe) { throw "lichii.exe not found after build" }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item (Join-Path $exe.DirectoryName '*') dist -Recurse -Force
+          Get-ChildItem dist | Select-Object Name, Length
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lichii-HMMA-Inline-Windows-x64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
