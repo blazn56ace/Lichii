@@ -26,8 +26,11 @@ jobs:
           modules: 'qtcharts qtmultimedia'
           cache: true
       - name: Install Vulkan SDK
-        shell: pwsh
-        run: ./tools/windows/install-vulkan-sdk.ps1
+        uses: humbletim/setup-vulkan-sdk@v1.2.1
+        with:
+          vulkan-query-version: 1.3.290.0
+          vulkan-components: Vulkan-Headers, Vulkan-Loader, Glslang, SPIRV-Tools
+          vulkan-use-cache: true
       - name: Configure
         shell: pwsh
         run: >
