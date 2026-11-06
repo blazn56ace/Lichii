@@ -7,6 +7,7 @@ on:
       - experiment/hmma-inline-windows
       - experiment/hmma-upstream-combined
       - experiment/glsl-software-hmma
+      - experiment/glsl-hmma-corrected
 
 permissions:
   contents: read
