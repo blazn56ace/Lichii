@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "common/logging/log.h"
 #include "shader_recompiler/backend/glsl/emit_glsl_instructions.h"
 #include "shader_recompiler/backend/glsl/glsl_emit_context.h"
 #include "shader_recompiler/frontend/ir/value.h"
@@ -133,6 +134,11 @@ void EmitTensorMulAdd(EmitContext& ctx, IR::Inst& inst, const IR::Value& a,
         const char* mode_env = std::getenv("EDEN_NX2_GLSL_HMMA_ROUND_MODE");
         const std::string_view mode = mode_env ? std::string_view(mode_env) : std::string_view{};
         const unsigned round_mode = mode == "1" ? 1u : mode == "2" ? 2u : 0u;
+        static bool logged_hmma_mode = false;
+        if (!logged_hmma_mode) {
+            LOG_INFO(Render_OpenGL, "GLSL software HMMA active: rounding mode={} depth={} (0=explicit, 1=pack/unpack, 2=none)", round_mode, depth);
+            logged_hmma_mode = true;
+        }
         ctx.header += "#define LICHII_HMMA_ROUND_MODE " + std::to_string(round_mode) + "\n";
         ctx.header += R"GLSL(
 // Match the SPIR-V software HMMA's explicit FP16 quantization, including
