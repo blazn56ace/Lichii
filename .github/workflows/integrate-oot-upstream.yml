@@ -42,7 +42,7 @@ jobs:
           # Four confirmed conflicts are from upstream additions overlapping older
           # implementations. Use upstream versions only for these exact paths.
           # All other conflicts remain fatal; never silently discard diagnostic changes.
-          if ! git merge --no-commit --no-ff "$upstream_commit"; then
+          if ! git merge --no-commit --no-ff -X theirs "$upstream_commit"; then
             mapfile -t conflicted < <(git diff --name-only --diff-filter=U)
             printf 'Conflicts: %s\\n' "${conflicted[*]}"
             for file in "${conflicted[@]}"; do
@@ -70,6 +70,7 @@ jobs:
               exit 1
             fi
           done
+          # Prefer upstream on overlapping conflict hunks; retain local-only diagnostic changes.
           # Remove upstream workflow additions and restore existing workflows.
           git restore --source="$base_commit" --staged --worktree -- .github/workflows
           git rm --cached --ignore-unmatch .github/workflows/build-check.yml
