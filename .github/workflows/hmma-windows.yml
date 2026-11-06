@@ -12,6 +12,7 @@ on:
       - experiment/glsl-hmma-fp16-rounding
       - experiment/glsl-hmma-rounding-diagnostics
       - experiment/oot-upstream-integration
+      - experiment/glsl-hmma-session-diagnostics
 
 permissions:
   contents: read
