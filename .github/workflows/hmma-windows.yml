@@ -9,6 +9,7 @@ on:
       - experiment/glsl-software-hmma
       - experiment/glsl-hmma-corrected
       - experiment/nx2-semaphore-diagnostics
+      - experiment/glsl-hmma-fp16-rounding
 
 permissions:
   contents: read
