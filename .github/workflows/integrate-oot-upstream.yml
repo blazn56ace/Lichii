@@ -44,4 +44,13 @@ jobs:
             git diff --name-only --diff-filter=U
             exit 1
           fi
+          # GitHub's default Actions token cannot introduce or update workflow files
+          # from upstream. Keep workflow files from this branch as-is.
+          git checkout HEAD^1 -- .github/workflows 2>/dev/null || true
+          git rm --cached --ignore-unmatch .github/workflows/build-check.yml
+          git rm --ignore-unmatch .github/workflows/build-check.yml || true
+          git add .github/workflows
+          if ! git diff --cached --quiet; then
+            git commit -m "Keep existing CI workflows; integrate upstream emulator code"
+          fi
           git push origin HEAD:refs/heads/experiment/oot-upstream-integration
