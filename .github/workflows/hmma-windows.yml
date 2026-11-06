@@ -10,6 +10,7 @@ on:
       - experiment/glsl-hmma-corrected
       - experiment/nx2-semaphore-diagnostics
       - experiment/glsl-hmma-fp16-rounding
+      - experiment/glsl-hmma-rounding-diagnostics
 
 permissions:
   contents: read
