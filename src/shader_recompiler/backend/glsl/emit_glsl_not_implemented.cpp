@@ -124,6 +124,20 @@ void EmitTensorMulAdd(EmitContext& ctx, IR::Inst& inst, const IR::Value& a,
         throw NotImplementedException("Unsupported GLSL HMMA depth {}", depth);
     }
 
+    // Diagnostic isolation: bypass HMMA output to determine whether the visual
+    // corruption originates in matrix arithmetic or a later rendering stage.
+    // This intentionally breaks HMMA-dependent effects; it is not a rendering fix.
+    const char* bypass_env = std::getenv("EDEN_NX2_GLSL_HMMA_BYPASS");
+    if (bypass_env && std::string_view(bypass_env) == "1") {
+        static bool logged_hmma_bypass = false;
+        if (!logged_hmma_bypass) {
+            LOG_INFO(Render_OpenGL, "GLSL HMMA diagnostic bypass active: returning accumulator C");
+            logged_hmma_bypass = true;
+        }
+        ctx.AddU32x2("{}={};", inst, ctx.var_alloc.Consume(c));
+        return;
+    }
+
     // GLSL software HMMA mirrors the SPIR-V lane mapping and sequential FMA order.
     // readInvocationARB requires GL_ARB_shader_ballot.
     if (ctx.header.find("#extension GL_ARB_shader_ballot") == std::string::npos) {
