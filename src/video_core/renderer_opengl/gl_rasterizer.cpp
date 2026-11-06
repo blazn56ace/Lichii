@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <algorithm>
+#include <atomic>
 #include <array>
 #include <bitset>
 #include <memory>
@@ -445,6 +446,16 @@ void RasterizerOpenGL::Query(GPUVAddr gpu_addr, VideoCommon::QueryType type,
 void RasterizerOpenGL::QueryFallback(GPUVAddr gpu_addr, VideoCommon::QueryType type,
                                      VideoCommon::QueryPropertiesFlags flags, u32 payload,
                                      u32 subreport) {
+    if (gpu_addr == 0) {
+        // Diagnostic only: identify OpenGL query fallback calls that would write to GPU VA zero.
+        static std::atomic<u32> zero_query_fallbacks{};
+        const u32 count = zero_query_fallbacks.fetch_add(1, std::memory_order_relaxed);
+        if (count < 64) {
+            LOG_ERROR(Render_OpenGL,
+                      "Zero-address GL QueryFallback: type={} flags={:#x} payload={:#x} subreport={} occurrence={}",
+                      static_cast<u32>(type), static_cast<u32>(flags), payload, subreport, count + 1);
+        }
+    }
     if (type != VideoCommon::QueryType::Payload) {
         payload = 1u;
     }
