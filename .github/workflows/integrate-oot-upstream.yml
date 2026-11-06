@@ -1,9 +1,9 @@
-name: One-time upstream nx2 integration
+name: Upstream nx2 integration for GLSL HMMA diagnostics
 
 on:
   push:
     branches:
-      - experiment/oot-upstream-integration
+      - experiment/glsl-hmma-upstream-nov06
     paths:
       - .github/workflows/integrate-oot-upstream.yml
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: oot-upstream-integration
+  group: glsl-hmma-upstream-nov06
   cancel-in-progress: false
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: experiment/oot-upstream-integration
+          ref: experiment/glsl-hmma-upstream-nov06
           fetch-depth: 0
           persist-credentials: true
       - name: Fetch upstream nx2 and merge without losing local changes
@@ -57,4 +57,4 @@ jobs:
           git merge --abort
           git read-tree --reset -u "$merged_tree"
           git commit -m "Integrate upstream nx2 source improvements without workflow changes"
-          git push origin HEAD:refs/heads/experiment/oot-upstream-integration
+          git push origin HEAD:refs/heads/experiment/glsl-hmma-upstream-nov06
