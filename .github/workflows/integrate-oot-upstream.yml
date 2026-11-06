@@ -39,12 +39,37 @@ jobs:
           upstream_commit=$(git rev-parse FETCH_HEAD)
           # Merge into the index and worktree, without making an upstream-parent commit.
           # This avoids importing changes to workflow files in pushed ancestry.
+          # Four confirmed conflicts are from upstream additions overlapping older
+          # implementations. Use upstream versions only for these exact paths.
+          # All other conflicts remain fatal; never silently discard diagnostic changes.
           if ! git merge --no-commit --no-ff "$upstream_commit"; then
-            echo "::error::Upstream merge has conflicts; nothing will be pushed."
-            git status --short
-            git diff --name-only --diff-filter=U
-            exit 1
+            mapfile -t conflicted < <(git diff --name-only --diff-filter=U)
+            printf 'Conflicts: %s\\n' "${conflicted[*]}"
+            for file in "${conflicted[@]}"; do
+              case "$file" in
+                src/tests/CMakeLists.txt|src/video_core/CMakeLists.txt|src/video_core/renderer_vulkan/async_draw_policy.h|src/video_core/renderer_vulkan/vk_rasterizer.cpp)
+                  git checkout --theirs -- "$file"
+                  git add -- "$file"
+                  echo "Resolved using upstream: $file"
+                  ;;
+                *)
+                  echo "::error::Unexpected merge conflict: $file"
+                  exit 1
+                  ;;
+              esac
+            done
+            if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+              echo "::error::Unresolved merge conflicts remain."
+              exit 1
+            fi
           fi
+          # Explicitly preserve the GLSL HMMA and GPU memory diagnostics.
+          for file in src/shader_recompiler/backend/glsl/emit_glsl_not_implemented.cpp src/video_core/renderer_opengl/gl_rasterizer.cpp; do
+            if ! git diff --quiet "$base_commit" -- "$file"; then
+              echo "::error::Protected diagnostic file changed during upstream merge: $file"
+              exit 1
+            fi
+          done
           # Remove upstream workflow additions and restore existing workflows.
           git restore --source="$base_commit" --staged --worktree -- .github/workflows
           git rm --cached --ignore-unmatch .github/workflows/build-check.yml
