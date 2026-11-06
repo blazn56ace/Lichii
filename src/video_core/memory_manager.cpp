@@ -322,6 +322,17 @@ void MemoryManager::Write(GPUVAddr addr, T data) {
         return;
     }
 
+    // Preserve the assertion, but report the failed address and backing state first.
+    static std::atomic<u32> failed_writes{};
+    const u32 count = failed_writes.fetch_add(1, std::memory_order_relaxed);
+    if (count < 64) {
+        const auto translated = GpuToCpuAddress(addr);
+        LOG_ERROR(HW_GPU,
+                  "Unmapped GPU Write{} addr={:#x} translated={} sparse_fallback_failed occurrence={}",
+                  sizeof(T) * 8, addr,
+                  translated ? fmt::format("{:#x}", *translated) : std::string{"unmapped"},
+                  count + 1);
+    }
     ASSERT(false);
 }
 
