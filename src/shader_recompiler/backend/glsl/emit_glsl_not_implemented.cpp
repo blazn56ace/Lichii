@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "common/logging/log.h"
+#include "common/logging.h"
 #include "shader_recompiler/backend/glsl/emit_glsl_instructions.h"
 #include "shader_recompiler/backend/glsl/glsl_emit_context.h"
 #include "shader_recompiler/frontend/ir/value.h"
