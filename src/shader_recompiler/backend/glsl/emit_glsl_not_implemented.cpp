@@ -125,7 +125,7 @@ void EmitTensorMulAdd(EmitContext& ctx, IR::Inst& inst, const IR::Value& a,
     // readInvocationARB requires GL_ARB_shader_ballot. Emit the directive before
     // other GLSL declarations, and the helper after existing extension directives.
     if (ctx.header.find("#extension GL_ARB_shader_ballot") == std::string::npos) {
-        ctx.header.insert(0, "#extension GL_ARB_shader_ballot : require\\n");
+        ctx.header.insert(0, "#extension GL_ARB_shader_ballot : require\n");
     }
     if (ctx.header.find("LichiiSoftwareHmma(") == std::string::npos) {
         ctx.header += R"GLSL(
