@@ -456,6 +456,12 @@ void RasterizerOpenGL::QueryFallback(GPUVAddr gpu_addr, VideoCommon::QueryType t
                       static_cast<u32>(type), static_cast<u32>(flags), payload, subreport, count + 1);
         }
     }
+    // A zero GPU virtual address is unmapped. Vulkan's query cache does not issue a
+    // host write to this address; do not manufacture one in the OpenGL fallback.
+    // Keep the diagnostic above to identify the originating semaphore command.
+    if (gpu_addr == 0) {
+        return;
+    }
     if (type != VideoCommon::QueryType::Payload) {
         payload = 1u;
     }
