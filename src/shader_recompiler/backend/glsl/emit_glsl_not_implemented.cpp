@@ -129,6 +129,22 @@ void EmitTensorMulAdd(EmitContext& ctx, IR::Inst& inst, const IR::Value& a,
     }
     if (ctx.header.find("LichiiSoftwareHmma(") == std::string::npos) {
         ctx.header += R"GLSL(
+// Match the SPIR-V software HMMA's explicit FP16 quantization, including
+// ties-to-even and subnormals. Avoid pack/unpack round trips that a GLSL
+// optimizer may fold away when the intermediate FP32 value is reused.
+float LichiiRoundToF16(float value) {
+    uint bits = floatBitsToUint(value);
+    uint magnitude = bits & 0x7fffffffu;
+    uint tie = (magnitude >> 13u) & 1u;
+    uint rounded = (magnitude + 0xfffu + tie) & ~0x1fffu;
+    uint normal = rounded >= 0x47800000u ? 0x7f800000u : rounded;
+    float scaled = uintBitsToFloat(magnitude) * 16777216.0;
+    uint subnormal = floatBitsToUint(roundEven(scaled) * (1.0 / 16777216.0));
+    uint finite = magnitude >= 0x38800000u ? normal : subnormal;
+    uint result = magnitude >= 0x7f800000u ? magnitude : finite;
+    return uintBitsToFloat(result | (bits & 0x80000000u));
+}
+
 uvec2 LichiiSoftwareHmma(uvec4 matrixA, uvec2 matrixB, uvec2 matrixC, uint depth) {
     vec2 c0 = unpackHalf2x16(matrixC.x);
     vec2 c1 = unpackHalf2x16(matrixC.y);
@@ -157,8 +173,10 @@ uvec2 LichiiSoftwareHmma(uvec4 matrixA, uvec2 matrixB, uvec2 matrixC, uint depth
         accum.w = fma(a1.y, b1.y, accum.w);
         if (component == 3u) {
             // HMMA.F16 rounds at each K=8 boundary.
-            accum.xy = unpackHalf2x16(packHalf2x16(accum.xy));
-            accum.zw = unpackHalf2x16(packHalf2x16(accum.zw));
+            accum.x = LichiiRoundToF16(accum.x);
+            accum.y = LichiiRoundToF16(accum.y);
+            accum.z = LichiiRoundToF16(accum.z);
+            accum.w = LichiiRoundToF16(accum.w);
         }
     }
     return uvec2(packHalf2x16(accum.xy), packHalf2x16(accum.zw));
