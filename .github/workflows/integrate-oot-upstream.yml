@@ -34,23 +34,27 @@ jobs:
           git fetch --no-tags upstream nx2
           echo "Upstream SHA: $(git rev-parse FETCH_HEAD)"
           echo "Local SHA: $(git rev-parse HEAD)"
-          if git merge-base --is-ancestor FETCH_HEAD HEAD; then
-            echo "Upstream already incorporated."
-            exit 0
-          fi
-          if ! git merge --no-edit --no-ff FETCH_HEAD -m "Merge upstream nx2 into OoT HMMA integration"; then
-            echo "::error::Upstream merge has conflicts. No merge commit was pushed."
+          base_commit=$(git rev-parse HEAD)
+          base_tree=$(git rev-parse HEAD^{tree})
+          upstream_commit=$(git rev-parse FETCH_HEAD)
+          # Merge into the index and worktree, without making an upstream-parent commit.
+          # This avoids importing changes to workflow files in pushed ancestry.
+          if ! git merge --no-commit --no-ff "$upstream_commit"; then
+            echo "::error::Upstream merge has conflicts; nothing will be pushed."
             git status --short
             git diff --name-only --diff-filter=U
             exit 1
           fi
-          # GitHub's default Actions token cannot introduce or update workflow files
-          # from upstream. Keep workflow files from this branch as-is.
-          git checkout HEAD^1 -- .github/workflows 2>/dev/null || true
+          # Remove upstream workflow additions and restore existing workflows.
+          git restore --source="$base_commit" --staged --worktree -- .github/workflows
           git rm --cached --ignore-unmatch .github/workflows/build-check.yml
-          git rm --ignore-unmatch .github/workflows/build-check.yml || true
-          git add .github/workflows
-          if ! git diff --cached --quiet; then
-            git commit -m "Keep existing CI workflows; integrate upstream emulator code"
-          fi
+          rm -f .github/workflows/build-check.yml
+          git add -A
+          git diff --cached --name-status "$base_commit" | head -100
+          # Commit the resolved source tree as one normal single-parent commit.
+          # Never push the temporary upstream merge commit/history.
+          merged_tree=$(git write-tree)
+          git merge --abort
+          git read-tree --reset -u "$merged_tree"
+          git commit -m "Integrate upstream nx2 source improvements without workflow changes"
           git push origin HEAD:refs/heads/experiment/oot-upstream-integration
