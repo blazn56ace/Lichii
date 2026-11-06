@@ -11,6 +11,7 @@ on:
       - experiment/nx2-semaphore-diagnostics
       - experiment/glsl-hmma-fp16-rounding
       - experiment/glsl-hmma-rounding-diagnostics
+      - experiment/oot-upstream-integration
 
 permissions:
   contents: read
