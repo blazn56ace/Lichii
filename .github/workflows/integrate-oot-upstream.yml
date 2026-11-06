@@ -1,0 +1,47 @@
+name: One-time upstream nx2 integration
+
+on:
+  push:
+    branches:
+      - experiment/oot-upstream-integration
+    paths:
+      - .github/workflows/integrate-oot-upstream.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: oot-upstream-integration
+  cancel-in-progress: false
+
+jobs:
+  merge-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: experiment/oot-upstream-integration
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Fetch upstream nx2 and merge without losing local changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/zortos293/Lichii.git
+          git fetch --no-tags upstream nx2
+          echo "Upstream SHA: $(git rev-parse FETCH_HEAD)"
+          echo "Local SHA: $(git rev-parse HEAD)"
+          if git merge-base --is-ancestor FETCH_HEAD HEAD; then
+            echo "Upstream already incorporated."
+            exit 0
+          fi
+          if ! git merge --no-edit --no-ff FETCH_HEAD -m "Merge upstream nx2 into OoT HMMA integration"; then
+            echo "::error::Upstream merge has conflicts. No merge commit was pushed."
+            git status --short
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+          git push origin HEAD:refs/heads/experiment/oot-upstream-integration
