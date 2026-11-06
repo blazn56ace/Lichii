@@ -13,6 +13,7 @@ on:
       - experiment/glsl-hmma-rounding-diagnostics
       - experiment/oot-upstream-integration
       - experiment/glsl-hmma-session-diagnostics
+      - experiment/glsl-hmma-upstream-nov06
 
 permissions:
   contents: read
