@@ -332,8 +332,8 @@ void MemoryManager::Write(GPUVAddr addr, T data) {
     if (count < 64) {
         const auto translated = GpuToCpuAddress(addr);
         LOG_ERROR(HW_GPU,
-                  "Unmapped GPU Write{} addr={:#x} translated={} sparse_fallback_failed occurrence={}",
-                  sizeof(T) * 8, addr,
+                  "Unmapped GPU Write{} addr={:#x} value={:#x} translated={} sparse_fallback_failed occurrence={}",
+                  sizeof(T) * 8, addr, static_cast<u64>(data),
                   translated ? fmt::format("{:#x}", *translated) : std::string{"unmapped"},
                   count + 1);
     }
