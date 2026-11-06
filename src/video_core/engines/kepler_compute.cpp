@@ -95,6 +95,21 @@ void KeplerCompute::ProcessNativeReportSemaphore(u32 argument) {
     const u32 payload = native_registers[0x6c2];
     const u32 operation = argument & 3;
     const bool one_word = (argument >> 28) & 1;
+    // Address zero is never a valid destination for a GPU report semaphore.
+    // Do not enqueue a query that would later assert on an unmapped GPU write.
+    // Preserve nonzero addresses; diagnose those at the memory manager boundary.
+    if (address == 0) {
+        static std::atomic<u32> invalid_zero_reports{};
+        const u32 count = invalid_zero_reports.fetch_add(1, std::memory_order_relaxed);
+        if (count < 32) {
+            LOG_ERROR(HW_GPU,
+                      "Dropping zero-address native compute semaphore: payload={:#x} control={:#x} "
+                      "registers=[{:#x},{:#x},{:#x}] occurrence={}",
+                      payload, argument, native_registers[0x6c0], native_registers[0x6c1],
+                      native_registers[0x6c2], count + 1);
+        }
+        return;
+    }
     static u32 logged{};
     if (logged++ < 32) {
         LOG_INFO(HW_GPU, "Native compute report semaphore {:#x} = {:#x}, control {:#x}", address,
