@@ -8,6 +8,7 @@ on:
       - experiment/hmma-upstream-combined
       - experiment/glsl-software-hmma
       - experiment/glsl-hmma-corrected
+      - experiment/nx2-semaphore-diagnostics
 
 permissions:
   contents: read
