@@ -6,6 +6,7 @@ on:
     branches:
       - experiment/hmma-inline-windows
       - experiment/hmma-upstream-combined
+      - experiment/glsl-software-hmma
 
 permissions:
   contents: read
