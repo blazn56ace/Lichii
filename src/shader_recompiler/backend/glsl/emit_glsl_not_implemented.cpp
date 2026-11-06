@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <string_view>
+#include <cstdlib>
 
 #include <string>
 
@@ -128,6 +129,11 @@ void EmitTensorMulAdd(EmitContext& ctx, IR::Inst& inst, const IR::Value& a,
         ctx.header.insert(0, "#extension GL_ARB_shader_ballot : require\n");
     }
     if (ctx.header.find("LichiiSoftwareHmma(") == std::string::npos) {
+        // Diagnostic only: 0=explicit rounding (baseline), 1=pack/unpack, 2=no intermediate rounding.
+        const char* mode_env = std::getenv("EDEN_NX2_GLSL_HMMA_ROUND_MODE");
+        const std::string_view mode = mode_env ? std::string_view(mode_env) : std::string_view{};
+        const unsigned round_mode = mode == "1" ? 1u : mode == "2" ? 2u : 0u;
+        ctx.header += "#define LICHII_HMMA_ROUND_MODE " + std::to_string(round_mode) + "\n";
         ctx.header += R"GLSL(
 // Match the SPIR-V software HMMA's explicit FP16 quantization, including
 // ties-to-even and subnormals. Avoid pack/unpack round trips that a GLSL
@@ -173,10 +179,15 @@ uvec2 LichiiSoftwareHmma(uvec4 matrixA, uvec2 matrixB, uvec2 matrixC, uint depth
         accum.w = fma(a1.y, b1.y, accum.w);
         if (component == 3u) {
             // HMMA.F16 rounds at each K=8 boundary.
+            #if LICHII_HMMA_ROUND_MODE == 0
             accum.x = LichiiRoundToF16(accum.x);
             accum.y = LichiiRoundToF16(accum.y);
             accum.z = LichiiRoundToF16(accum.z);
             accum.w = LichiiRoundToF16(accum.w);
+            #elif LICHII_HMMA_ROUND_MODE == 1
+            accum = vec4(unpackHalf2x16(packHalf2x16(accum.xy)),
+                         unpackHalf2x16(packHalf2x16(accum.zw)));
+            #endif
         }
     }
     return uvec2(packHalf2x16(accum.xy), packHalf2x16(accum.zw));
